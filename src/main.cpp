@@ -473,7 +473,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if (scale != 4)
+    if (scale <= 0)
     {
         fprintf(stderr, "invalid scale argument\n");
         return -1;
@@ -549,35 +549,18 @@ int main(int argc, char** argv)
         }
     }
 
-    int prepadding = 0;
-
-    if (model.find(PATHSTR("models-DF2K")) != path_t::npos
-        || model.find(PATHSTR("models-DF2K_JPEG")) != path_t::npos)
-    {
-        prepadding = 10;
-    }
-    else
-    {
-        fprintf(stderr, "unknown model dir type\n");
-        return -1;
-    }
+    int prepadding = 10;
 
 #if _WIN32
     wchar_t parampath[256];
     wchar_t modelpath[256];
-    if (scale == 4)
-    {
-        swprintf(parampath, 256, L"%s/x4.param", model.c_str());
-        swprintf(modelpath, 256, L"%s/x4.bin", model.c_str());
-    }
+    swprintf(parampath, 256, L"%s/x%d.param", model.c_str(), scale);
+    swprintf(modelpath, 256, L"%s/x%d.bin", model.c_str(), scale);
 #else
     char parampath[256];
     char modelpath[256];
-    if (scale == 4)
-    {
-        sprintf(parampath, "%s/x4.param", model.c_str());
-        sprintf(modelpath, "%s/x4.bin", model.c_str());
-    }
+    sprintf(parampath, "%s/x%d.param", model.c_str(), scale);
+    sprintf(modelpath, "%s/x%d.bin", model.c_str(), scale);
 #endif
 
 #if _WIN32
@@ -607,28 +590,24 @@ int main(int argc, char** argv)
         uint32_t heap_budget = ncnn::get_gpu_device(gpuid)->get_heap_budget();
 
         // more fine-grained tilesize policy here
-        if (model.find(PATHSTR("models-DF2K")) != path_t::npos
-            || model.find(PATHSTR("models-DF2K_JPEG")) != path_t::npos)
-        {
-            if (heap_budget > 1900)
-                tilesize = 200;
-            else if (heap_budget > 550)
-                tilesize = 100;
-            else if (heap_budget > 190)
-                tilesize = 64;
-            else
-                tilesize = 32;
-        }
+        if (heap_budget > 1900)
+            tilesize = 200;
+        else if (heap_budget > 550)
+            tilesize = 100;
+        else if (heap_budget > 190)
+            tilesize = 64;
+        else
+            tilesize = 32;
     }
 
     {
         RealSR realsr(gpuid, tta_mode);
 
-        realsr.load(parampath, modelpath);
-
         realsr.scale = scale;
         realsr.tilesize = tilesize;
         realsr.prepadding = prepadding;
+
+        realsr.load(parampath, modelpath);
 
         // main routine
         {
